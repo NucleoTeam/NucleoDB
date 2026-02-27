@@ -71,6 +71,10 @@ public class NucleoDB {
         this(dbType, readToTime, null, null, null, null, packagesToScan);
     }
 
+    public NucleoDB(DBType dbType, String readToTime, Consumer<ConnectionConsumer> connectionCustomizer, Consumer<DataTableConsumer> dataTableCustomizer, Consumer<LockConfig> lockCustomizer, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        this(dbType, readToTime, connectionCustomizer, dataTableCustomizer, lockCustomizer, null, packagesToScan);
+    }
+
     public NucleoDB(DBType dbType, String readToTime, Consumer<ConnectionConsumer> connectionCustomizer, Consumer<DataTableConsumer> dataTableCustomizer, Consumer<LockConfig> lockCustomizer, ShardConfig shardConfig, String... packagesToScan) throws IncorrectDataEntryClassException, MissingDataEntryConstructorsException, IntrospectionException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
         this.shardConfig = shardConfig;
         startLockManager(lockCustomizer);
