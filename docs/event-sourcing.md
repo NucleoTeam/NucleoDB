@@ -281,25 +281,34 @@ if (this.config.getReadToTime() != null && c.getTime().isAfter(this.config.getRe
 }
 ```
 
-## Node Filter
+## Shard Filter
 
-The `DataTableConfig` includes a `NodeFilter` that can be used to selectively accept or reject modifications:
+The `DataTableConfig` includes a `ShardFilter` that controls which items this node owns. It replaces the
+former `NodeFilter` and integrates with the `ShardAssignment` interface for hash-ring-based sharding:
 
 ```java
 // In DataTable.modify() for CREATE
-if (!config.getNodeFilter().create(c)) {
+if (!config.getShardFilter().create(c)) {
     consumerResponse(null, c.getChangeUUID());
-    return; // Filtered out
+    return; // Filtered out — item belongs to another shard
 }
 
 // In DataTable.modify() for DELETE
-if (de != null && !config.getNodeFilter().delete(d, de)) {
+if (de != null && !config.getShardFilter().delete(d, de)) {
     consumerResponse(null, d.getChangeUUID());
-    return; // Filtered out
+    return; // Filtered out — item belongs to another shard
 }
 ```
 
-This allows implementing custom sharding, data partitioning, or selective replication strategies.
+Configure sharding via `ShardConfig` and `HashShardAssignment` (consistent hash ring):
+
+```java
+NucleoDB db = NucleoDBBuilder.create()
+    .dbType(NucleoDB.DBType.ALL)
+    .packages("com.example.models")
+    .shardConfig(new ShardConfig(0, 3)) // shard 0 of 3
+    .build();
+```
 
 ## Event Listeners
 

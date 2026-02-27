@@ -34,7 +34,7 @@ public class ConnectionConfig implements Serializable{
   MQSConfiguration mqsConfiguration = new KafkaConfiguration();
   Map<String, Object> settingsMap = new TreeMap<>();
   String connectionFileName;
-  NodeFilter nodeFilter = new NodeFilter();
+  ShardFilter shardFilter = new ShardFilter();
   @JsonIgnore
   private transient Queue<StartupRun> startupRuns = Queues.newLinkedBlockingDeque();
 
@@ -187,11 +187,11 @@ public class ConnectionConfig implements Serializable{
     this.connectionFileName = connectionFileName;
   }
 
-  public NodeFilter getNodeFilter() {
-    return nodeFilter;
+  public ShardFilter getShardFilter() {
+    return shardFilter;
   }
 
-  public void setNodeFilter(NodeFilter nodeFilter) {
-    this.nodeFilter = nodeFilter;
+  public void setShardFilter(ShardFilter shardFilter) {
+    this.shardFilter = shardFilter;
   }
 }

@@ -242,7 +242,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
                         String pop = action.value();
                         //System.out.println("Change added to queue.");
                         if (connectionType) {
-                            if (this.getConnectionHandler().getConfig().getNodeFilter().accept(action.key())) {
+                            if (this.getConnectionHandler().getConfig().getShardFilter().accept(action.key())) {
                                 getQueue().add(pop);
                                 getLeftToRead().incrementAndGet();
                                 synchronized (getQueue()) {
@@ -251,7 +251,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
                             }
                         }
                         if (databaseType) {
-                            if (this.getDatabase().getConfig().getNodeFilter().accept(action.key())) {
+                            if (this.getDatabase().getConfig().getShardFilter().accept(action.key())) {
                                 getQueue().add(pop);
                                 getLeftToRead().incrementAndGet();
                                 synchronized (getQueue()) {
@@ -342,7 +342,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
                         currentOffsets.put(action.partition(), action.offset());
                         String pop = action.value();
                         if (connectionType) {
-                            if (this.getConnectionHandler().getConfig().getNodeFilter().accept(action.key())) {
+                            if (this.getConnectionHandler().getConfig().getShardFilter().accept(action.key())) {
                                 getQueue().add(pop);
                                 getLeftToRead().incrementAndGet();
                                 synchronized (getQueue()) {
@@ -351,7 +351,7 @@ public class KafkaConsumerHandler extends ConsumerHandler {
                             }
                         }
                         if (databaseType) {
-                            if (this.getDatabase().getConfig().getNodeFilter().accept(action.key())) {
+                            if (this.getDatabase().getConfig().getShardFilter().accept(action.key())) {
                                 getQueue().add(pop);
                                 getLeftToRead().incrementAndGet();
                                 synchronized (getQueue()) {

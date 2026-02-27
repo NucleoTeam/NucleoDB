@@ -5,7 +5,7 @@ import com.nucleodb.library.database.tables.connection.Connection;
 import com.nucleodb.library.database.tables.connection.ConnectionHandler;
 import com.nucleodb.library.database.tables.table.DataEntry;
 import com.nucleodb.library.database.tables.table.DataTable;
-import com.nucleodb.library.database.tables.table.NodeFilter;
+import com.nucleodb.library.database.tables.table.ShardFilter;
 import com.nucleodb.library.database.utils.InvalidConnectionException;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryClassException;
 import com.nucleodb.library.database.utils.exceptions.IncorrectDataEntryObjectException;
@@ -46,7 +46,7 @@ public class NodeFilterTest {
                     c.getConnectionConfig().setConnectionFileName("./data/"+ c.getConnectionConfig().getLabel()+".dat");
                     c.getConnectionConfig().setExportInterval(50);
                     c.getConnectionConfig().setSaveInterval(50);
-                    c.getConnectionConfig().setNodeFilter(new com.nucleodb.library.database.tables.connection.NodeFilter(){
+                    c.getConnectionConfig().setShardFilter(new com.nucleodb.library.database.tables.connection.ShardFilter(){
                         List accept = Arrays.asList("test1", "test2");
                         @Override
                         public boolean create(ConnectionCreate c) {
@@ -77,7 +77,7 @@ public class NodeFilterTest {
                     c.getDataTableConfig().setTableFileName("./data/"+ c.getDataTableConfig().getTable()+".dat");
                     c.getDataTableConfig().setExportInterval(50);
                     c.getDataTableConfig().setSaveInterval(50);
-                    c.getDataTableConfig().setNodeFilter(new NodeFilter(){
+                    c.getDataTableConfig().setShardFilter(new ShardFilter(){
                         List accept = Arrays.asList("test1", "test2");
                         @Override
                         public boolean create(Create c) {
