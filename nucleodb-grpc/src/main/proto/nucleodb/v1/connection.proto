@@ -1,0 +1,158 @@
+syntax = "proto3";
+
+package nucleodb.v1;
+
+import "nucleodb/v1/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.nucleodb.grpc.proto";
+option java_outer_classname = "ConnectionProto";
+
+message ConnectionMessage {
+  string uuid = 1;
+  string from_key = 2;
+  string to_key = 3;
+  map<string, string> metadata = 4;
+  int64 version = 5;
+  string date = 6;
+  string modified = 7;
+}
+
+// --- Create ---
+message CreateConnectionRequest {
+  string connection_type = 1;
+  string from_key = 2;
+  string to_key = 3;
+  map<string, string> metadata = 4;
+}
+
+message CreateConnectionResponse {
+  OperationStatus status = 1;
+  ConnectionMessage connection = 2;
+}
+
+// --- Read by UUID ---
+message GetConnectionRequest {
+  string connection_type = 1;
+  string uuid = 2;
+}
+
+message GetConnectionResponse {
+  OperationStatus status = 1;
+  ConnectionMessage connection = 2;
+}
+
+// --- Read by from key ---
+message GetConnectionsByFromRequest {
+  string connection_type = 1;
+  string from_key = 2;
+  Pagination pagination = 3;
+}
+
+message GetConnectionsByFromResponse {
+  OperationStatus status = 1;
+  repeated ConnectionMessage connections = 2;
+}
+
+// --- Read by from+to keys ---
+message GetConnectionsByFromAndToRequest {
+  string connection_type = 1;
+  string from_key = 2;
+  string to_key = 3;
+  Pagination pagination = 4;
+}
+
+message GetConnectionsByFromAndToResponse {
+  OperationStatus status = 1;
+  repeated ConnectionMessage connections = 2;
+}
+
+// --- Reverse lookup by to key ---
+message GetConnectionsByToRequest {
+  string connection_type = 1;
+  string to_key = 2;
+  Pagination pagination = 3;
+}
+
+message GetConnectionsByToResponse {
+  OperationStatus status = 1;
+  repeated ConnectionMessage connections = 2;
+}
+
+// --- Get all connections of a type ---
+message GetAllConnectionsRequest {
+  string connection_type = 1;
+  Pagination pagination = 2;
+}
+
+message GetAllConnectionsResponse {
+  OperationStatus status = 1;
+  repeated ConnectionMessage connections = 2;
+  int64 total_count = 3;
+}
+
+// --- Update ---
+message UpdateConnectionRequest {
+  string connection_type = 1;
+  string uuid = 2;
+  map<string, string> metadata = 3;
+}
+
+message UpdateConnectionResponse {
+  OperationStatus status = 1;
+  ConnectionMessage connection = 2;
+}
+
+// --- Delete ---
+message DeleteConnectionRequest {
+  string connection_type = 1;
+  string uuid = 2;
+}
+
+message DeleteConnectionResponse {
+  OperationStatus status = 1;
+}
+
+// --- Bulk Create ---
+message BulkCreateConnectionRequest {
+  string connection_type = 1;
+  repeated CreateConnectionEntry connections = 2;
+}
+
+message CreateConnectionEntry {
+  string from_key = 1;
+  string to_key = 2;
+  map<string, string> metadata = 3;
+}
+
+message BulkCreateConnectionResponse {
+  OperationStatus status = 1;
+  repeated ConnectionMessage connections = 2;
+  int32 success_count = 3;
+  int32 failure_count = 4;
+}
+
+// --- Bulk Delete ---
+message BulkDeleteConnectionRequest {
+  string connection_type = 1;
+  repeated string uuids = 2;
+}
+
+message BulkDeleteConnectionResponse {
+  OperationStatus status = 1;
+  int32 success_count = 2;
+  int32 failure_count = 3;
+}
+
+service ConnectionService {
+  rpc Create (CreateConnectionRequest) returns (CreateConnectionResponse);
+  rpc Get (GetConnectionRequest) returns (GetConnectionResponse);
+  rpc GetByFrom (GetConnectionsByFromRequest) returns (GetConnectionsByFromResponse);
+  rpc GetByFromAndTo (GetConnectionsByFromAndToRequest) returns (GetConnectionsByFromAndToResponse);
+  rpc GetByTo (GetConnectionsByToRequest) returns (GetConnectionsByToResponse);
+  rpc GetAll (GetAllConnectionsRequest) returns (GetAllConnectionsResponse);
+  rpc Update (UpdateConnectionRequest) returns (UpdateConnectionResponse);
+  rpc Delete (DeleteConnectionRequest) returns (DeleteConnectionResponse);
+  rpc BulkCreate (BulkCreateConnectionRequest) returns (BulkCreateConnectionResponse);
+  rpc BulkDelete (BulkDeleteConnectionRequest) returns (BulkDeleteConnectionResponse);
+}

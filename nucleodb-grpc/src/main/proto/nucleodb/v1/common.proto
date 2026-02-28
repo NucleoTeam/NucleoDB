@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package nucleodb.v1;
+
+option java_multiple_files = true;
+option java_package = "com.nucleodb.grpc.proto";
+option java_outer_classname = "CommonProto";
+
+message Pagination {
+  int64 skip = 1;
+  int64 limit = 2;
+}
+
+message OperationStatus {
+  bool success = 1;
+  string message = 2;
+  string error_code = 3;
+}

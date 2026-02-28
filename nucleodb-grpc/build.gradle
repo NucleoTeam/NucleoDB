@@ -1,0 +1,79 @@
+plugins {
+    id 'java'
+    id 'com.google.protobuf' version '0.9.4'
+}
+
+group = 'com.nucleodb'
+version = '1.19.2.1'
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'SynloadRepo'
+        url = uri("https://nexus.synload.com/repository/maven-repo-releases/")
+        credentials {
+            username = System.getenv("SYNLOAD_REPO_USER")
+            password = System.getenv("SYNLOAD_REPO_PASS")
+        }
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_19
+    targetCompatibility = JavaVersion.VERSION_19
+}
+
+// gRPC version compatible with ratis-grpc:3.1.2 (uses grpc 1.56.x)
+def grpcVersion = '1.56.1'
+def protobufVersion = '3.23.4'
+
+dependencies {
+    implementation project(':')
+
+    implementation "io.grpc:grpc-netty-shaded:${grpcVersion}"
+    implementation "io.grpc:grpc-protobuf:${grpcVersion}"
+    implementation "io.grpc:grpc-stub:${grpcVersion}"
+    implementation "io.grpc:grpc-services:${grpcVersion}"
+
+    implementation "com.google.protobuf:protobuf-java:${protobufVersion}"
+
+    // Required for @Generated annotation in Java 9+
+    compileOnly 'org.apache.tomcat:annotations-api:6.0.53'
+
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.2'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+    testImplementation "org.mockito:mockito-core:5.12.0"
+    testImplementation "io.grpc:grpc-testing:${grpcVersion}"
+}
+
+test {
+    useJUnitPlatform()
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:${protobufVersion}"
+    }
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
+        }
+    }
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {}
+        }
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs 'build/generated/source/proto/main/grpc'
+            srcDirs 'build/generated/source/proto/main/java'
+        }
+    }
+}
