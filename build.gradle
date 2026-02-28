@@ -54,6 +54,12 @@ dependencies {
     api group: 'com.fasterxml.jackson.datatype', name:'jackson-datatype-jsr310', version:'2.15.2'
     api 'com.github.jsqlparser:jsqlparser:4.6'
 
+    // Apache Ratis for Raft consensus
+    api 'org.apache.ratis:ratis-server:3.1.2'
+    api 'org.apache.ratis:ratis-grpc:3.1.2'
+    api 'org.apache.ratis:ratis-common:3.1.2'
+    api 'org.apache.ratis:ratis-metrics-default:3.1.2'
+
     testImplementation  'org.junit.jupiter:junit-jupiter-api:5.8.1'
     testImplementation  'org.junit.jupiter:junit-jupiter-engine:5.8.1'
     testImplementation  "org.mockito:mockito-core:5.12.0"

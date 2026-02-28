@@ -559,7 +559,7 @@ public class DataTable<T extends DataEntry> implements Serializable{
     switch (mod) {
       case CREATE:
         Create c = (Create) modification;
-        if(!config.getNodeFilter().create(c)){
+        if(!config.getShardFilter().create(c)){
           consumerResponse(null, c.getChangeUUID());
           return;
         }
@@ -616,7 +616,7 @@ public class DataTable<T extends DataEntry> implements Serializable{
           try {
             itemProcessed();
             T de = keyToEntry.get(d.getKey());
-            if(de!=null && !config.getNodeFilter().delete(d, de)){
+            if(de!=null && !config.getShardFilter().delete(d, de)){
               consumerResponse(null, d.getChangeUUID());
               return;
             }
