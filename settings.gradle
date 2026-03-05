@@ -1,1 +1,3 @@
 rootProject.name = 'library'
+
+include 'nucleodb-grpc'

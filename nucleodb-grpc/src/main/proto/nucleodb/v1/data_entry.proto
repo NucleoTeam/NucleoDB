@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package nucleodb.v1;
+
+import "nucleodb/v1/common.proto";
+
+option java_multiple_files = true;
+option java_package = "com.nucleodb.grpc.proto";
+option java_outer_classname = "DataEntryProto";
+
+// Represents a DataEntry as exchanged over the wire.
+message DataEntryMessage {
+  string key = 1;
+  int64 version = 2;
+  string data_json = 3;
+  string created = 4;
+  string modified = 5;
+}
+
+// --- Create ---
+message CreateDataEntryRequest {
+  string table = 1;
+  string data_json = 2;
+}
+
+message CreateDataEntryResponse {
+  OperationStatus status = 1;
+  DataEntryMessage entry = 2;
+}
+
+// --- Read by ID ---
+message GetDataEntryRequest {
+  string table = 1;
+  string key = 2;
+}
+
+message GetDataEntryResponse {
+  OperationStatus status = 1;
+  DataEntryMessage entry = 2;
+}
+
+// --- Read by index key ---
+message GetDataEntriesByIndexRequest {
+  string table = 1;
+  string index_key = 2;
+  string value_json = 3;
+  Pagination pagination = 4;
+}
+
+message GetDataEntriesByIndexResponse {
+  OperationStatus status = 1;
+  repeated DataEntryMessage entries = 2;
+}
+
+// --- Get all entries ---
+message GetAllDataEntriesRequest {
+  string table = 1;
+  Pagination pagination = 2;
+}
+
+message GetAllDataEntriesResponse {
+  OperationStatus status = 1;
+  repeated DataEntryMessage entries = 2;
+  int64 total_count = 3;
+}
+
+// --- Update ---
+message UpdateDataEntryRequest {
+  string table = 1;
+  string key = 2;
+  string data_json = 3;
+}
+
+message UpdateDataEntryResponse {
+  OperationStatus status = 1;
+  DataEntryMessage entry = 2;
+}
+
+// --- Delete ---
+message DeleteDataEntryRequest {
+  string table = 1;
+  string key = 2;
+}
+
+message DeleteDataEntryResponse {
+  OperationStatus status = 1;
+}
+
+// --- SQL Passthrough ---
+message SqlRequest {
+  string sql = 1;
+  string result_class = 2;
+}
+
+message SqlResponse {
+  OperationStatus status = 1;
+  string result_json = 2;
+}
+
+// --- Bulk Create ---
+message BulkCreateDataEntryRequest {
+  string table = 1;
+  repeated string data_json_list = 2;
+}
+
+message BulkCreateDataEntryResponse {
+  OperationStatus status = 1;
+  repeated DataEntryMessage entries = 2;
+  int32 success_count = 3;
+  int32 failure_count = 4;
+}
+
+// --- Bulk Delete ---
+message BulkDeleteDataEntryRequest {
+  string table = 1;
+  repeated string keys = 2;
+}
+
+message BulkDeleteDataEntryResponse {
+  OperationStatus status = 1;
+  int32 success_count = 2;
+  int32 failure_count = 3;
+}
+
+service DataEntryService {
+  rpc Create (CreateDataEntryRequest) returns (CreateDataEntryResponse);
+  rpc Get (GetDataEntryRequest) returns (GetDataEntryResponse);
+  rpc GetByIndex (GetDataEntriesByIndexRequest) returns (GetDataEntriesByIndexResponse);
+  rpc GetAll (GetAllDataEntriesRequest) returns (GetAllDataEntriesResponse);
+  rpc Update (UpdateDataEntryRequest) returns (UpdateDataEntryResponse);
+  rpc Delete (DeleteDataEntryRequest) returns (DeleteDataEntryResponse);
+  rpc ExecuteSql (SqlRequest) returns (SqlResponse);
+  rpc BulkCreate (BulkCreateDataEntryRequest) returns (BulkCreateDataEntryResponse);
+  rpc BulkDelete (BulkDeleteDataEntryRequest) returns (BulkDeleteDataEntryResponse);
+}
