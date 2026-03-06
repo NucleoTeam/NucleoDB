@@ -29,6 +29,9 @@ test {
     useJUnitPlatform()
     finalizedBy jacocoTestReport
     environment "TEST2", "CHECK"
+    maxHeapSize = "512m"
+    jvmArgs '-Xms128m'
+    forkEvery = 1
 }
 
 jacocoTestReport {
