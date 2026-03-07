@@ -1,0 +1,142 @@
+NucleoDB Known Test Issues and Coverage Gaps
+=============================================
+Date: 2026-03-07
+
+===========================================================================
+CRITICAL ISSUES
+===========================================================================
+
+1. ConnectionHandler.deleteSync() HANGS INDEFINITELY
+   Severity: HIGH
+   Location: ConnectionHandler.java:338
+   Symptom: CountDownLatch.await() never returns because the internal
+            message queue (QueueHandler) fails to process the delete
+            callback in certain JVM forking scenarios.
+   Impact: Any test with ConnectionHandler.deleteSync() in @AfterEach
+           will hang forever, preventing test suite completion.
+   Affected tests: ConnectionCrudTest (teardown), PerformanceTest (teardown)
+   Root cause: The QueueHandler thread appears to miss or fail to process
+               ConnectionDelete modifications in the forked JVM. The
+               CountDownLatch is created in deleteSync() but the
+               QueueHandler.run() loop either doesn't receive the message
+               or fails to match it to the callback.
+   Recommendation: Add a timeout to deleteSync(), e.g.:
+     countDownLatch.await(10, TimeUnit.SECONDS)
+   Or use deleteAsync with error handling in test teardown.
+
+2. DataTable.saveSync() HANGS FOR CERTAIN DATA PATTERNS
+   Severity: HIGH
+   Location: DataTable.java:415
+   Symptom: Same CountDownLatch hang as above, but triggered during
+            saveSync with unicode characters (EdgeCaseTest) or
+            high-volume operations.
+   Impact: EdgeCaseTest hangs on unicodeCharactersInFields test
+   Root cause: Likely a serialization issue in the internal message queue
+               where certain character encodings cause the JSON
+               serialization or deserialization to fail silently, causing
+               the callback to never fire.
+   Recommendation: Add timeout to saveSync() and log errors in the
+               internal message processing pipeline.
+
+3. DBType.ALL / EXPORT NULL POINTER
+   Severity: MEDIUM
+   Location: ConnectionHandler.loadSavedData() line 161
+   Symptom: NullPointerException when initializing NucleoDB with
+            DBType.ALL or DBType.EXPORT and LocalConfiguration.
+   Impact: ReadToTime.saveTest and exportTest fail.
+   Root cause: The connection handler expects a non-null table file
+               name/path when loadSaved=true, but LocalConfiguration
+               doesn't provide one. The ConnectionHandler doesn't
+               check for null before creating a File object.
+   Recommendation: Add null check in ConnectionHandler.loadSavedData()
+               before accessing the file path.
+
+===========================================================================
+TEST COVERAGE GAPS
+===========================================================================
+
+UNTESTED MODULES:
+
+1. SQL Module (0% coverage)
+   - SQLHandler: SQL query parsing and execution via JSqlParser
+   - PrimaryKey: Primary key SQL operations
+   No tests exist for SQL-based querying. This is a significant feature
+   gap if SQL support is intended for production use.
+
+2. Kafka Integration (10.4% coverage)
+   - KafkaProducerHandler: Only minimally covered via constructor paths
+   - KafkaConsumerHandler: Requires a live Kafka broker
+   - KafkaConfiguration/KafkaSettings: Basic config tested
+   Integration tests with an embedded Kafka broker would improve coverage.
+
+3. Export/Import Functionality
+   - Importer: No dedicated tests
+   - ObjectFileReader/ObjectFileWriter: Only tested via save/export paths
+   - ExportHandler: Tested minimally through DBType.EXPORT (which fails)
+
+4. Event System (12.5% coverage)
+   - DataTableEventListener: Only the functional test in EventTest
+   - ConnectionEventListener: Zero tests
+   Need tests for connection event callbacks.
+
+5. Serializer/JsonOperations (17.5% coverage)
+   - JsonOperations: JSON diff/patch operations not directly tested
+   - Serializer: Used indirectly but no unit tests for edge cases
+   - ObjectFileReader/ObjectFileWriter: No direct tests
+
+6. FieldFinder/EqualityCheck (33.3% coverage)
+   - Used internally for index field extraction
+   - No tests for complex field paths or nested objects
+
+7. ShardConfig/ShardAssignment
+   - HashShardAssignment: No tests
+   - RaftShardAssignment: No tests
+   - ShardFilter: No tests
+   Sharding functionality is completely untested.
+
+8. NucleoDBBuilder
+   - Builder pattern partially covered through test setup
+   - No tests for all builder options and configurations
+
+MISSING TEST SCENARIOS:
+
+1. Concurrency stress tests with connection operations
+2. Multi-table transaction scenarios
+3. Large dataset tests (>1000 entries)
+4. Memory pressure / OOM behavior
+5. Connection event listener callbacks
+6. Multiple NucleoDB instances in same JVM
+7. Error recovery after failed operations
+8. Schema evolution / data migration
+9. Pagination with large result sets
+10. Complex filter combinations
+
+===========================================================================
+TEST INFRASTRUCTURE ISSUES
+===========================================================================
+
+1. forkEvery = 1 causes extreme slowness
+   Each test class launches a new JVM. With 19+ test classes, each
+   requiring NucleoDB initialization (thread pool, indexes, queues),
+   the overhead is significant. Consider using forkEvery = 0 for
+   development and forkEvery = 1 only for CI.
+
+2. No test timeout configuration
+   Tests can hang indefinitely with no JUnit or Gradle-level timeout.
+   Recommend adding:
+     systemProperty 'junit.jupiter.execution.timeout.default', '120s'
+   in build.gradle.
+
+3. Thread.sleep in tests
+   Several tests use Thread.sleep for synchronization:
+   - ReadToTime.readToTimeTest: 5s sleep
+   - ReadToTime.modifyDateCheck: 4s sleep
+   - ReadToTime.saveTest: 10s sleep
+   - ReadToTime.exportTest: 10s sleep
+   - AsyncOperationsTest: multiple 100-500ms sleeps
+   These make the test suite slower and more fragile. Consider using
+   CountDownLatch or Awaitility for better async test patterns.
+
+4. Missing test parallelization
+   JUnit 5 supports parallel test execution, which could significantly
+   reduce test time for independent test classes.

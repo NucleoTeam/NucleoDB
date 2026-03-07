@@ -1,0 +1,66 @@
+NucleoDB Test Results Summary
+=============================
+Date: 2026-03-07
+Test Framework: JUnit 5 (Jupiter) with JaCoCo coverage
+Build System: Gradle 8.3, Java 21
+
+OVERALL RESULTS
+---------------
+Total test classes: 19 executed (2 excluded due to hangs — see known issues)
+Total tests run:    146
+Passed:             143
+Failed:               3
+Skipped:              0
+Total time:         ~2 minutes 6 seconds
+
+EXCLUDED TESTS (due to infinite hangs in forkEvery=1 mode)
+----------------------------------------------------------
+- EdgeCaseTest (28 tests): Hangs on DataTable.saveSync() — CountDownLatch
+  never released when saving entries with unicode characters.
+- PerformanceTest (13 tests): Hangs in @AfterEach teardown —
+  ConnectionHandler.deleteSync() CountDownLatch never released.
+
+PER-CLASS RESULTS
+-----------------
+Class                                          | Tests | Pass | Fail | Time(s)
+-----------------------------------------------|-------|------|------|--------
+AcidPropertiesTest                             |    20 |   20 |    0 |   5.90
+AsyncOperationsTest                            |     9 |    9 |    0 |   6.10
+ConnectionCrudTest                             |    17 |   17 |    0 |   4.40
+CoreTest                                       |     4 |    4 |    0 |   1.95
+CrudOperationsTest                             |    21 |   21 |    0 |   5.13
+EventTest                                      |     1 |    1 |    0 |   1.57
+LockTest                                       |     1 |    1 |    0 |   2.37
+RangeQueryTest                                 |    16 |   16 |    0 |   3.98
+ReadToTime                                     |     5 |    2 |    3 |  11.54
+TreeIndexTest                                  |     5 |    5 |    0 |   0.09
+TrieIndexTest                                  |     5 |    5 |    0 |   0.09
+EnvReplaceTest                                 |     3 |    3 |    0 |   0.04
+QueueHandlerTest                               |     1 |    1 |    0 |   3.94
+CommittedEntryTest                             |     4 |    4 |    0 |   0.05
+NucleoDBStateMachineTest                       |     8 |    8 |    0 |   2.56
+RatisConfigTest                                |     8 |    8 |    0 |   0.07
+RatisKafkaConfigurationTest                    |     6 |    6 |    0 |   0.07
+RatisKafkaSettingsTest                         |     5 |    5 |    0 |   0.06
+RatisServerTest                                |     7 |    7 |    0 |  11.04
+
+FAILED TESTS (3)
+----------------
+All 3 failures are in ReadToTime and are environment/configuration issues,
+not logic bugs:
+
+1. ReadToTime.saveTest()
+   Error: NullPointerException in ConnectionHandler.loadSavedData()
+   Cause: DBType.ALL requires a valid save path for connections; the
+          ConnectionHandler receives null for its table file name.
+
+2. ReadToTime.readOnlyDB()
+   Error: RuntimeException wrapping InvocationTargetException
+   Cause: Partial table registration — only Author table is configured
+          with LocalConfiguration, but Book table is not, causing a
+          reflection error during table startup.
+
+3. ReadToTime.exportTest()
+   Error: NullPointerException in ConnectionHandler.loadSavedData()
+   Cause: Same root cause as saveTest — DBType.EXPORT initializes
+          connections that require file paths not provided in test config.

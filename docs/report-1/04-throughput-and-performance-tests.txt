@@ -1,0 +1,172 @@
+NucleoDB Throughput and Performance Tests
+==========================================
+Date: 2026-03-07
+
+NOTE: The PerformanceTest class was excluded from the automated test run
+because its @AfterEach teardown method hangs indefinitely (see known issues
+report). This report documents the test design, what it measures, and the
+methodology used. The actual benchmark numbers could not be collected in
+this run.
+
+===========================================================================
+PERFORMANCE TEST DESIGN
+===========================================================================
+
+File: src/test/java/com/nucleodb/library/PerformanceTest.java
+Tag: @Tag("performance")
+Constants:
+  - WARMUP_COUNT  = 10  operations (discarded from timing)
+  - BENCHMARK_COUNT = 100 operations (measured)
+Configuration:
+  - NucleoDB in NO_LOCAL mode with LocalConfiguration (in-memory MQ)
+  - Separate Author and Book tables with Connection handler
+  - Each test creates a fresh NucleoDB instance
+
+BENCHMARK METHODOLOGY
+---------------------
+Each benchmark follows this pattern:
+1. Setup: Create prerequisite data
+2. Warmup: Run WARMUP_COUNT operations (not timed)
+3. Benchmark: Run BENCHMARK_COUNT operations, recording:
+   - Per-operation latency (nanosecond precision, reported in ms)
+   - Total wall-clock time
+4. Report:
+   - Throughput: ops/sec = (count * 1000) / totalMs
+   - Latency statistics: min, avg, median, P95, P99, max
+
+===========================================================================
+BENCHMARK TESTS (13 total)
+===========================================================================
+
+1. SYNC CREATE THROUGHPUT (benchmarkSyncCreate)
+   Order: 1
+   What: 100 sequential authorTable.saveSync() with unique entries
+   Measures: Single-threaded write throughput and per-op latency
+   Assertion: Must complete within 30 seconds
+   Expected throughput: Depends on machine; in-memory MQ should yield
+   high ops/sec since no network I/O is involved.
+
+2. ASYNC CREATE THROUGHPUT (benchmarkAsyncCreate)
+   Order: 2
+   What: 100 concurrent saveAsync() with CountDownLatch synchronization
+   Measures: Async pipeline throughput (fire-and-wait)
+   Assertion: All callbacks fire within 30 seconds; count matches
+   Note: Reports total throughput only (not per-op latency)
+
+3. READ BY KEY THROUGHPUT (benchmarkReadByKey)
+   Order: 10
+   What: Create 100 entries, then read each by primary key
+   Measures: Primary key lookup performance
+   Warmup: 10 reads before timing
+
+4. READ BY INDEX THROUGHPUT (benchmarkReadByIndex)
+   Order: 11
+   What: Create 100 entries, then read each by indexed "name" field
+   Measures: TreeIndex/TrieIndex lookup performance via get()
+
+5. TRIE SEARCH THROUGHPUT (benchmarkTrieSearch)
+   Order: 12
+   What: Create 100 entries with "trie-search-N" names, search by prefix
+   Measures: TrieIndex.search() prefix matching performance
+
+6. READ WITH PAGINATION THROUGHPUT (benchmarkReadWithPagination)
+   Order: 13
+   What: Create 100 entries with same genre, paginate in pages of 10
+   Measures: Pagination overhead on indexed reads (10 pages of 10)
+
+7. SYNC UPDATE THROUGHPUT (benchmarkSyncUpdate)
+   Order: 20
+   What: Create 1 entry, update it 100 times sequentially
+   Measures: Single-entry update throughput with version chain growth
+   Assertion: Final version = WARMUP_COUNT + BENCHMARK_COUNT
+
+8. SYNC DELETE THROUGHPUT (benchmarkSyncDelete)
+   Order: 30
+   What: Create 100 entries, then delete each one
+   Measures: Delete operation throughput including index cleanup
+   Assertion: Table empty after all deletes
+
+9. CONNECTION CREATE THROUGHPUT (benchmarkConnectionCreate)
+   Order: 40
+   What: 1 author + 100 books, create 100 WroteConnections
+   Measures: Connection (edge) creation throughput
+   Assertion: getByFrom returns BENCHMARK_COUNT connections
+
+10. CONNECTION READ THROUGHPUT (benchmarkConnectionRead)
+    Order: 41
+    What: 1 author + 100 books + 100 connections, read all 100 times
+    Measures: Connection fan-out read performance (getByFrom)
+
+11. CONNECTION DELETE THROUGHPUT (benchmarkConnectionDelete)
+    Order: 42
+    What: 1 author + 100 books + 100 connections, delete all
+    Measures: Connection deletion throughput
+    Assertion: No connections remain
+
+12. CONCURRENT CREATE THROUGHPUT (benchmarkConcurrentCreateThroughput)
+    Order: 50
+    What: 4 threads, each creating 25 entries simultaneously
+    Measures: Multi-threaded write throughput and thread safety
+    Assertion: All 100 entries created, no data loss
+    Timeout: 60 seconds
+
+13. MIXED WORKLOAD (benchmarkMixedWorkload)
+    Order: 51
+    What: Pre-populate 50 entries, then interleave 50 of each:
+          CREATE -> READ -> UPDATE -> DELETE (200 total operations)
+    Measures: Realistic mixed workload throughput
+    Reports: Separate latency stats for each operation type
+    Assertion: Original 50 entries remain (new ones were deleted)
+
+14. SCALABILITY (benchmarkReadPerformanceWithGrowingDataset)
+    Order: 60
+    What: Test read performance at dataset sizes 10, 50, 100, 200
+    Measures: How read latency scales with growing dataset
+    Reports: Separate benchmark for each dataset size
+
+===========================================================================
+KNOWN BLOCKING ISSUE
+===========================================================================
+
+The PerformanceTest class cannot currently run to completion because the
+@AfterEach teardown method calls:
+
+  wroteHandler.deleteSync(conn)
+
+This hangs indefinitely. The ConnectionHandler.deleteSync() uses a
+CountDownLatch.await() that never releases because the internal message
+queue thread fails to process the delete operation in the forked JVM
+environment.
+
+WORKAROUND OPTIONS:
+1. Remove the @AfterEach teardown (each test creates a fresh NucleoDB)
+2. Add a timeout to deleteSync operations
+3. Use deleteAsync with a timeout instead of deleteSync in teardown
+
+===========================================================================
+WHAT THE THROUGHPUT TESTS WOULD REVEAL
+===========================================================================
+
+When operational, these tests provide insight into:
+
+1. WRITE THROUGHPUT: How fast can NucleoDB process sync and async creates?
+   The in-memory LocalConfiguration eliminates network latency, so this
+   measures the internal serialization + index update pipeline.
+
+2. READ THROUGHPUT: How fast are key lookups vs index lookups vs trie
+   prefix searches? This reveals the overhead of each index type.
+
+3. UPDATE THROUGHPUT: How does the version chain (copy-on-write with
+   JSON diff patches) affect update speed over many iterations?
+
+4. DELETE THROUGHPUT: How expensive is removing an entry from all indexes
+   plus the primary store?
+
+5. CONNECTION THROUGHPUT: How fast can relationships be created/read/deleted?
+   This is critical for graph-like query patterns.
+
+6. CONCURRENCY: Does multi-threaded access maintain correctness and what
+   is the concurrent throughput vs single-threaded?
+
+7. SCALABILITY: Does read latency remain constant (O(1) for key/tree) or
+   degrade with dataset size?
