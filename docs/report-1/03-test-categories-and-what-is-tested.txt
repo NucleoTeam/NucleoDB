@@ -1,0 +1,300 @@
+NucleoDB Test Categories and What Is Tested
+=============================================
+Date: 2026-03-07
+
+This document describes what each test class covers and which parts of
+the NucleoDB codebase are exercised.
+
+===========================================================================
+1. CORE DATABASE TESTS
+===========================================================================
+
+CoreTest (4 tests)
+  Tests the fundamental NucleoDB operations:
+  - checkSaving: Save a DataEntry and verify retrieval by primary key
+  - checkSavingWithoutChanges: Copy a DataEntry without modifications
+  - checkSearch: Trie-based prefix search on name field
+  - deleteTest: Delete by index lookup and verify removal from trie
+  Source classes exercised:
+    NucleoDB, DataTable, DataEntry, AuthorDE, TrieIndex, TreeIndex,
+    LocalConfiguration, LocalConsumerHandler, LocalProducerHandler
+
+CrudOperationsTest (21 tests)
+  Comprehensive CRUD testing across two tables (Author, Book):
+  CREATE (3 tests):
+    - Single entry creation with field verification
+    - Multiple entries with unique key generation
+    - Cross-table creation (Author + Book)
+  READ (5 tests):
+    - Read by primary key and indexed field
+    - Trie prefix search returning multiple matches
+    - Pagination and filter projections
+    - Writable copy retrieval and modification
+    - Read all entries
+  UPDATE (5 tests):
+    - Single field update with verification
+    - Version increment and modified timestamp
+    - Multi-field update
+    - Sequential version increments (5 updates)
+    - No-change save does not increment version
+  DELETE (4 tests):
+    - Single entry deletion
+    - Index cleanup after deletion
+    - Batch deletion of all entries
+    - Delete and recreate with new key
+  SEARCH/INDEX (4 tests):
+    - startsWith and endsWith on TrieIndex
+    - TreeIndex equality and not-equal queries
+    - IN query with multiple values
+    - Book table search by title and genre
+  Source classes exercised:
+    DataTable (saveSync, deleteSync, get, search, startsWith, endsWith,
+    getNotEqual, in), DataEntry, DataEntryProjection, Pagination
+
+ConnectionCrudTest (17 tests)
+  Tests relationship/connection operations between Author and Book:
+  CREATE (5 tests):
+    - Basic connection creation (Author -> Book)
+    - Connection with metadata (Map<String,String>)
+    - Multiple connections from same entity
+    - UUID assignment on connection
+    - Timestamp assignment on connection
+  READ (5 tests):
+    - Read by from-key
+    - Reverse read by to-key
+    - Read all connections
+    - Read by specific from+to pair
+    - Non-existent connection returns empty
+  UPDATE (2 tests):
+    - Update metadata on connection
+    - Version increment on connection update
+  DELETE (3 tests):
+    - Delete single connection
+    - Delete removes from reverse index
+    - Delete one keeps others intact
+  COMPLEX (2 tests):
+    - Many-to-many relationship (2 authors x 2 books = 4 connections)
+    - Connection survives entity update
+  Source classes exercised:
+    ConnectionHandler (saveSync, deleteSync, getByFrom, getReverseByTo,
+    getByFromAndTo, getAllConnections), Connection, ConnectionProjection,
+    WroteConnection
+
+===========================================================================
+2. ACID PROPERTIES TESTS
+===========================================================================
+
+AcidPropertiesTest (20 tests)
+  Validates Atomicity, Consistency, Isolation, and Durability:
+  ATOMICITY (5 tests):
+    - Sync save completes with all fields populated
+    - Delete removes from all indexes atomically
+    - Multi-field update is atomic
+    - saveSync blocks until committed (data queryable immediately)
+    - Event listeners fire only after complete operations
+  CONSISTENCY (5 tests):
+    - Version always increments by exactly 1
+    - Indexes stay in sync through CRUD lifecycle
+    - Table size remains accurate after mixed operations
+    - Created timestamp never changes on update
+    - Every entry gets a unique key (50 entries verified)
+  ISOLATION (6 tests):
+    - Read-only projections don't affect stored data
+    - 10 concurrent reads see consistent state
+    - Lock prevents concurrent modification
+    - Sequential locked updates maintain integrity (10 iterations)
+    - READ_ONLY DB mode rejects writes silently
+    - 5 concurrent writes to different entries don't interfere
+  DURABILITY (4 tests):
+    - saveSync data is queryable immediately after return
+    - deleteSync removal is immediate after return
+    - Updates persist correctly through 20-version chain
+    - Async save callback confirms persistence
+  Source classes exercised:
+    DataTable, DataEntry, LockManager, DataEntryProjection,
+    DataTableEventListener, NucleoDB (DBType.READ_ONLY)
+
+===========================================================================
+3. ASYNC OPERATIONS TESTS
+===========================================================================
+
+AsyncOperationsTest (9 tests)
+  Tests asynchronous and fire-and-forget operations:
+  SAVE ASYNC (3 tests):
+    - saveAsync creates entry and fires callback
+    - 10 concurrent saveAsync all complete
+    - saveAsync update fires callback with updated entry
+  DELETE ASYNC (2 tests):
+    - deleteAsync removes entry and fires callback
+    - 5 concurrent deleteAsync all complete
+  SAVE AND FORGET (2 tests):
+    - saveAndForget creates entry without callback
+    - 10 saveAndForget operations all persist
+  MIXED (2 tests):
+    - Mixed sync/async operations maintain consistency
+    - Async operations complete in order per entry (with delays)
+  Source classes exercised:
+    DataTable (saveAsync, deleteAsync, saveAndForget),
+    CountDownLatch-based synchronization
+
+===========================================================================
+4. RANGE QUERY TESTS
+===========================================================================
+
+RangeQueryTest (16 tests)
+  Tests TreeIndex range query operations:
+  GREATER THAN (4 tests):
+    - Basic greaterThan (inclusive, >= behavior)
+    - Highest value returns itself
+    - Value before all returns everything
+    - Value after all returns empty
+  GREATER THAN EQUAL (2 tests):
+    - Includes matching value
+    - Non-existing value returns entries after it
+  LESS THAN (3 tests):
+    - Basic lessThan (exclusive, < behavior)
+    - Lowest value returns empty
+    - Value after all returns everything
+  LESS THAN EQUAL (2 tests):
+    - Includes matching value
+    - Non-existing value
+  COMBINED (2 tests):
+    - Between query using intersection of gte/lte
+    - Range query with projection filter
+  EDGE CASES (3 tests):
+    - Range queries on empty table
+    - Range queries with single entry
+    - Range queries with duplicate values in index
+  Source classes exercised:
+    DataTable (greaterThan, greaterThanEqual, lessThan, lessThanEqual),
+    TreeIndex (tailMap, headMap operations)
+
+===========================================================================
+5. EVENT AND LOCK TESTS
+===========================================================================
+
+EventTest (1 test)
+  - Verifies DataTableEventListener callbacks (create, update, delete)
+    fire correctly with wait/notify synchronization
+  Source classes exercised:
+    DataTableEventListener, DataTable event integration
+
+LockTest (1 test)
+  - 24 iterations of lock-acquire -> modify -> save -> release cycle
+  - Verifies that lock operations complete within 1 second each
+  - Tests DataEntryProjection with setLockUntilWrite(true)
+  Source classes exercised:
+    LockManager, DataEntryProjection (locking mode), DataTable
+
+===========================================================================
+6. INDEX UNIT TESTS
+===========================================================================
+
+TreeIndexTest (5 tests)
+  - add: Add entry, verify contains()
+  - delete: Add + delete, verify index and reverseMap are empty
+  - modify: Change field, verify old key removed and new key present
+  - get: (empty test stub)
+  - contains: (empty test stub)
+  Source classes exercised:
+    TreeIndex (add, delete, modify, contains, getIndex, getReverseMap)
+
+TrieIndexTest (5 tests)
+  - add: Add entry, verify search()
+  - modify: Change field, verify old value removed, trie node count correct
+  - get: Add entry, verify exact match, node count = string length + 1
+  - contains: Long string, verify substring search works
+  - delete: Add + delete, verify trie pruned to root only
+  Source classes exercised:
+    TrieIndex (add, modify, get, search, delete), Node, Root
+
+===========================================================================
+7. MESSAGE QUEUE SYSTEM (MQS) TESTS
+===========================================================================
+
+QueueHandlerTest (1 test)
+  - Uses Mockito to mock ConsumerHandler and verify message processing
+  - Serializes a Create modification, adds to mock queue
+  - Verifies QueueHandler processes the queue and calls modify()
+  Source classes exercised:
+    QueueHandler, ConsumerHandler (mocked), Serializer, Create modification
+
+EnvReplaceTest (3 tests)
+  - Default value substitution: ${TEST:default} -> "default"
+  - Environment variable substitution: ${PATH} -> actual PATH
+  - Env variable with fallback: ${TEST2:wrong} -> "CHECK" (from env)
+  Source classes exercised:
+    EnvReplace.replaceEnvVariables()
+
+===========================================================================
+8. RATIS (RAFT CONSENSUS) TESTS
+===========================================================================
+
+RatisConfigTest (8 tests)
+  - Default and parameterized constructors
+  - Peer add/chaining/multiple peers
+  - Setters for all fields
+  - setPeers replaces list
+  - RatisPeerConfig constructor and setters
+  Source classes exercised:
+    RatisConfig, RatisConfig.RatisPeerConfig
+
+RatisKafkaConfigurationTest (6 tests)
+  - Default constructor values
+  - Custom constructor with RatisConfig
+  - Getter/setter for ratisConfig
+  - Equals/hashCode contract
+  Source classes exercised:
+    RatisKafkaConfiguration, RatisConfig
+
+RatisKafkaSettingsTest (5 tests)
+  - Default constructor values
+  - Builder pattern
+  - Topic/bootstrapServers setters
+  - Custom RatisConfig integration
+  Source classes exercised:
+    RatisKafkaSettings
+
+CommittedEntryTest (4 tests)
+  - Default constructor
+  - Index/message field setters
+  - Copy constructor
+  Source classes exercised:
+    NucleoDBStateMachine.CommittedEntry (inner class)
+
+NucleoDBStateMachineTest (8 tests)
+  - Constructor with storage directory
+  - Apply transaction (serialized Ratis log entry)
+  - Query handling
+  - Snapshot take/load lifecycle
+  - Close operation
+  Source classes exercised:
+    NucleoDBStateMachine, CommittedEntry
+
+RatisServerTest (7 tests)
+  - Constructor with RatisConfig
+  - Start/stop server lifecycle
+  - Single-node Raft group creation
+  - Submit message to Raft group
+  - Query from Raft group
+  Source classes exercised:
+    RatisServer, RatisConfig, NucleoDBStateMachine
+
+===========================================================================
+9. DATABASE MODE TESTS (in ReadToTime)
+===========================================================================
+
+ReadToTime (5 tests, 2 pass / 3 fail)
+  PASSING:
+  - readToTimeTest: Creates NucleoDB with future cutoff time, verifies
+    entries after cutoff are rejected
+  - modifyDateCheck: Verifies created/modified timestamps and version
+    after update with time delay
+
+  FAILING (environment issues):
+  - saveTest: DBType.ALL mode fails due to null connection file path
+  - exportTest: DBType.EXPORT mode fails due to null connection file path
+  - readOnlyDB: DBType.READ_ONLY with partial table config causes error
+  Source classes exercised:
+    NucleoDB (DBType.NO_LOCAL, ALL, EXPORT, READ_ONLY), DataTable,
+    time-based filtering

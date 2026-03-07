@@ -1,0 +1,88 @@
+NucleoDB Code Coverage Report (JaCoCo)
+=======================================
+Date: 2026-03-07
+Tool: JaCoCo via Gradle
+Tests: 146 executed across 19 test classes
+
+OVERALL COVERAGE
+----------------
+Metric        | Covered | Total  | Percentage
+--------------|---------|--------|----------
+Instructions  |   8,133 | 19,174 |    42.4%
+Branches      |     394 |  1,483 |    26.6%
+Lines         |   2,037 |  4,779 |    42.6%
+Complexity    |     693 |  1,886 |    36.7%
+Methods       |     586 |  1,139 |    51.4%
+Classes       |      75 |    115 |    65.2%
+
+PER-PACKAGE LINE COVERAGE
+--------------------------
+Package                                        | Covered | Total | Pct
+-----------------------------------------------|---------|-------|------
+com.nucleodb.library.mqs.local                 |      38 |    41 | 92.7%
+com.nucleodb.library.database.modifications    |     185 |   226 | 81.9%
+com.nucleodb.library.database.index            |     212 |   270 | 78.5%
+com.nucleodb.library.database.index.trie       |      25 |    33 | 75.8%
+com.nucleodb.library.mqs.config                |      41 |    59 | 69.5%
+com.nucleodb.library.database.lock             |     136 |   197 | 69.0%
+com.nucleodb.library.mqs                       |      79 |   136 | 58.1%
+com.nucleodb.library.database.tables.table     |     526 |   983 | 53.5%
+com.nucleodb.library.database.tables.connection|     384 |   796 | 48.2%
+com.nucleodb.library                           |     178 |   406 | 43.8%
+com.nucleodb.library.utils.field               |      18 |    54 | 33.3%
+com.nucleodb.library.mqs.kafka.ratis           |     122 |   472 | 25.8%
+com.nucleodb.library.utils                     |      13 |    51 | 25.5%
+com.nucleodb.library.database.utils            |      38 |   217 | 17.5%
+com.nucleodb.library.event                     |       1 |     8 | 12.5%
+com.nucleodb.library.mqs.kafka                 |      41 |   394 | 10.4%
+com.nucleodb.library.database.utils.sql        |       0 |   424 |  0.0%
+com.nucleodb.library.database.utils.exceptions |       0 |    10 |  0.0%
+com.nucleodb.library.mqs.exceptions            |       0 |     2 |  0.0%
+
+COVERAGE ANALYSIS
+-----------------
+
+WELL-COVERED (>70%):
+  - mqs.local (92.7%): The LocalConfiguration, LocalConsumerHandler, and
+    LocalProducerHandler are the primary MQ backend used in tests. Nearly
+    full coverage.
+  - database.modifications (81.9%): Create, Update, Delete, and Modify
+    modification classes are exercised through all CRUD test paths.
+  - database.index (78.5%): TreeIndex and TrieIndex have dedicated unit
+    tests covering add/delete/modify/search operations.
+  - database.index.trie (75.8%): Trie data structure (Node, Root, Entry)
+    well-tested through TrieIndex operations.
+
+MODERATELY COVERED (40-70%):
+  - mqs.config (69.5%): MQS configuration classes partially tested.
+  - database.lock (69.0%): LockManager tested through LockTest and
+    AcidPropertiesTest isolation tests.
+  - mqs (58.1%): QueueHandler has a dedicated Mockito-based unit test.
+  - database.tables.table (53.5%): DataTable, DataEntry, DataTableBuilder
+    heavily used but many code paths (export, save-to-disk, SQL) untested.
+  - database.tables.connection (48.2%): ConnectionHandler CRUD is tested
+    but delete operations have hanging issues (see known issues).
+  - library root (43.8%): NucleoDB, NucleoDBBuilder partially tested.
+
+POORLY COVERED (<40%):
+  - utils.field (33.3%): EqualityCheck and FieldFinder used internally
+    but not directly tested.
+  - mqs.kafka.ratis (25.8%): Ratis consensus tests cover config classes
+    but actual RatisServer/StateMachine network operations are hard to
+    test without a cluster.
+  - utils (25.5%): EnvReplace has a dedicated test; Serializer, Importer
+    are only exercised indirectly.
+  - database.utils (17.5%): JsonOperations, ObjectFileReader/Writer, and
+    utility classes used internally but not directly tested.
+  - event (12.5%): DataTableEventListener/ConnectionEventListener are
+    interfaces; only create/update/delete callbacks tested in EventTest.
+  - mqs.kafka (10.4%): KafkaProducerHandler/ConsumerHandler require a
+    live Kafka broker — not testable in unit test mode.
+
+ZERO COVERAGE:
+  - database.utils.sql (0.0%): SQLHandler and PrimaryKey — SQL query
+    parsing functionality is completely untested.
+  - database.utils.exceptions (0.0%): Custom exception classes not
+    directly tested (constructors only).
+  - mqs.exceptions (0.0%): RequiredMethodNotImplementedException unused
+    in test paths.

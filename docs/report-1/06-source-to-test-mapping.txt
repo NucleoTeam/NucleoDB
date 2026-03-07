@@ -1,0 +1,239 @@
+NucleoDB Source-to-Test Mapping
+================================
+Date: 2026-03-07
+
+This document maps each source module/class to its corresponding tests,
+showing which production code is tested and which is not.
+
+Legend:
+  [TESTED]   = Has direct or significant indirect test coverage
+  [PARTIAL]  = Some paths tested, others not
+  [UNTESTED] = No test coverage
+
+===========================================================================
+CORE (com.nucleodb.library)
+===========================================================================
+
+NucleoDB.java                     [TESTED]
+  Tested by: CoreTest, CrudOperationsTest, AcidPropertiesTest,
+             AsyncOperationsTest, ReadToTime (DBType variants)
+  Untested: Constructor variants, startup error handling
+
+NucleoDBBuilder.java              [PARTIAL]
+  Tested by: Indirectly via NucleoDB constructors
+  Untested: Full builder API
+
+ConnectionRegistry.java           [TESTED]
+  Tested by: ConnectionCrudTest (connection setup)
+  Untested: Error paths, multi-connection type registration
+
+TableRegistry.java                [TESTED]
+  Tested by: All tests that use nucleoDB.getTable()
+  Untested: Error handling, duplicate table registration
+
+ShardConfig.java                  [UNTESTED]
+HashShardAssignment.java          [UNTESTED]
+RaftShardAssignment.java          [UNTESTED]
+ShardAssignment.java              [UNTESTED]
+
+===========================================================================
+DATABASE - TABLES (com.nucleodb.library.database.tables.table)
+===========================================================================
+
+DataTable.java                    [TESTED]
+  Tested by: CoreTest, CrudOperationsTest, AcidPropertiesTest,
+             AsyncOperationsTest, RangeQueryTest, LockTest, EventTest
+  Methods tested:
+    saveSync, saveAsync, saveAndForget, deleteSync, deleteAsync,
+    get, search, startsWith, endsWith, getNotEqual, in,
+    greaterThan, greaterThanEqual, lessThan, lessThanEqual,
+    getEntries, waitTillReady
+  Methods untested:
+    SQL-related methods, export handlers, save handlers
+
+DataEntry.java                    [TESTED]
+  Tested by: CoreTest (copy method), CrudOperationsTest
+  Key, version, created, modified timestamps all verified
+
+DataEntryProjection.java          [TESTED]
+  Tested by: CrudOperationsTest, AcidPropertiesTest, RangeQueryTest
+  Features tested: writable, lockUntilWrite, filter, pagination
+
+DataTableBuilder.java             [PARTIAL]
+  Tested by: Indirectly via NucleoDB table setup
+
+DataTableConfig.java              [PARTIAL]
+  Tested by: Indirectly via test configurations
+
+DataTableConsumer.java            [PARTIAL]
+  Tested by: Indirectly via LocalConsumerHandler
+
+SaveHandler.java                  [PARTIAL]
+  Tested by: Indirectly when DBType.ALL is used
+
+ExportHandler.java                [PARTIAL]
+  Tested by: Indirectly when DBType.EXPORT is used
+
+ModQueueHandler.java              [PARTIAL]
+  Tested by: Indirectly via all save/delete operations
+
+===========================================================================
+DATABASE - CONNECTIONS (com.nucleodb.library.database.tables.connection)
+===========================================================================
+
+ConnectionHandler.java            [TESTED]
+  Tested by: ConnectionCrudTest
+  Methods tested:
+    saveSync, deleteSync, getByFrom, getReverseByTo,
+    getByFromAndTo, getAllConnections
+  Methods untested:
+    saveAsync, deleteAsync, loadSavedData error paths
+
+Connection.java                   [TESTED]
+  Tested by: ConnectionCrudTest (uuid, date, modified, version, keys)
+
+ConnectionConfig.java             [PARTIAL]
+ConnectionProjection.java         [TESTED]
+  Tested by: ConnectionCrudTest (write mode)
+
+ConnectionConsumer.java           [PARTIAL]
+SaveHandler.java                  [PARTIAL]
+ExportHandler.java                [UNTESTED]
+
+===========================================================================
+DATABASE - INDEX (com.nucleodb.library.database.index)
+===========================================================================
+
+TreeIndex.java                    [TESTED]
+  Tested by: TreeIndexTest (add, delete, modify, contains)
+  Also tested by: CrudOperationsTest, RangeQueryTest
+  Untested: get() method (empty test stub)
+
+TrieIndex.java                    [TESTED]
+  Tested by: TrieIndexTest (add, modify, get, search, delete)
+  Also tested by: CoreTest, CrudOperationsTest
+
+IndexWrapper.java                 [PARTIAL]
+  Tested by: Indirectly through table operations
+
+trie/Node.java                    [TESTED]
+  Tested by: TrieIndexTest (node counting, pruning)
+
+trie/Root.java                    [TESTED]
+trie/Entry.java                   [TESTED]
+
+===========================================================================
+DATABASE - LOCK (com.nucleodb.library.database.lock)
+===========================================================================
+
+LockManager.java                  [TESTED]
+  Tested by: LockTest (24-iteration lock cycle),
+             AcidPropertiesTest (isolation tests)
+
+LockConfig.java                   [PARTIAL]
+LockQueueAction.java              [PARTIAL]
+LockReference.java                [PARTIAL]
+
+===========================================================================
+DATABASE - MODIFICATIONS (com.nucleodb.library.database.modifications)
+===========================================================================
+
+Create.java                       [TESTED]
+Update.java                       [TESTED]
+Delete.java                       [TESTED]
+Modify.java                       [TESTED]
+Modification.java                 [TESTED]
+  All tested by: Every CRUD test, QueueHandlerTest
+
+ConnectionCreate.java             [TESTED]
+ConnectionUpdate.java             [TESTED]
+ConnectionDelete.java             [TESTED]
+  Tested by: ConnectionCrudTest
+
+===========================================================================
+DATABASE - UTILS (com.nucleodb.library.database.utils)
+===========================================================================
+
+JsonOperations.java               [PARTIAL]
+  Tested indirectly via update operations (JSON diff/patch)
+
+Serializer.java                   [PARTIAL]
+  Tested indirectly via QueueHandlerTest
+
+ObjectFileReader.java             [UNTESTED]
+ObjectFileWriter.java             [UNTESTED]
+Importer.java                     [UNTESTED]
+Pagination.java                   [TESTED]
+  Tested by: CrudOperationsTest, RangeQueryTest
+
+TreeSetExt.java                   [PARTIAL]
+Utils.java                        [PARTIAL]
+ChangeHandler.java                [PARTIAL]
+SkipCopy.java                     [UNTESTED]
+StartupRun.java                   [UNTESTED]
+
+sql/SQLHandler.java               [UNTESTED]
+sql/PrimaryKey.java               [UNTESTED]
+
+exceptions/*.java                 [UNTESTED]
+  (IncorrectDataEntryClassException, etc. - only constructors)
+
+===========================================================================
+MQS (com.nucleodb.library.mqs)
+===========================================================================
+
+QueueHandler.java                 [TESTED]
+  Tested by: QueueHandlerTest (Mockito-based)
+
+ConsumerHandler.java              [PARTIAL]
+ProducerHandler.java              [PARTIAL]
+
+config/MQSConfiguration.java      [PARTIAL]
+config/MQSSettings.java           [PARTIAL]
+config/MQSConstructorSettings.java [PARTIAL]
+
+local/LocalConfiguration.java     [TESTED]
+  Tested by: All tests use LocalConfiguration
+local/LocalProducerHandler.java   [TESTED]
+local/LocalConsumerHandler.java   [TESTED]
+
+kafka/KafkaConfiguration.java     [PARTIAL]
+kafka/KafkaSettings.java          [PARTIAL]
+kafka/KafkaProducerHandler.java   [UNTESTED]
+kafka/KafkaConsumerHandler.java   [UNTESTED]
+
+kafka/ratis/RatisConfig.java      [TESTED]
+  Tested by: RatisConfigTest
+kafka/ratis/RatisServer.java      [TESTED]
+  Tested by: RatisServerTest
+kafka/ratis/NucleoDBStateMachine.java [TESTED]
+  Tested by: NucleoDBStateMachineTest
+kafka/ratis/RatisKafkaConfiguration.java [TESTED]
+  Tested by: RatisKafkaConfigurationTest
+kafka/ratis/RatisKafkaSettings.java [TESTED]
+  Tested by: RatisKafkaSettingsTest
+kafka/ratis/RatisKafkaProducerHandler.java [UNTESTED]
+kafka/ratis/RatisKafkaConsumerHandler.java [UNTESTED]
+
+exceptions/RequiredMethodNotImplementedException.java [UNTESTED]
+
+===========================================================================
+EVENTS (com.nucleodb.library.event)
+===========================================================================
+
+DataTableEventListener.java       [TESTED]
+  Tested by: EventTest, AcidPropertiesTest
+
+ConnectionEventListener.java      [UNTESTED]
+
+===========================================================================
+UTILS (com.nucleodb.library.utils)
+===========================================================================
+
+EnvReplace.java                   [TESTED]
+  Tested by: EnvReplaceTest
+
+Serializer.java                   [PARTIAL]
+
+field/EqualityCheck.java          [PARTIAL]
+field/FieldFinder.java            [PARTIAL]
