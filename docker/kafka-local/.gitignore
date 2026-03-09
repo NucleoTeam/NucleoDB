@@ -1,0 +1,6 @@
+kafka_*/
+kraft-data/
+kraft-server.properties
+logs/
+kafka.pid
+*.tgz
