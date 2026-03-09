@@ -1,0 +1,74 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.nucleodb'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'SynloadRepo'
+        url = uri("https://nexus.synload.com/repository/maven-repo-releases/")
+        credentials {
+            username = System.getenv("SYNLOAD_REPO_USER")
+            password = System.getenv("SYNLOAD_REPO_PASS")
+        }
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_19
+    targetCompatibility = JavaVersion.VERSION_19
+}
+
+dependencies {
+    implementation project(':')
+    implementation project(':nucleodb-grpc')
+
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.2'
+
+    // gRPC client for testing
+    implementation "io.grpc:grpc-netty-shaded:1.56.1"
+    implementation "io.grpc:grpc-protobuf:1.56.1"
+    implementation "io.grpc:grpc-stub:1.56.1"
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+}
+
+application {
+    mainClass = 'com.nucleodb.example.ExampleServer'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+task runIntegrationTest(type: JavaExec) {
+    description = 'Run self-contained CRUD + connection integration test (no external deps)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.nucleodb.example.IntegrationTest'
+}
+
+task runCrudTest(type: JavaExec) {
+    description = 'Run CRUD tests against a running server (requires server on localhost:9091)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.nucleodb.example.CrudTest'
+    args = ['localhost:9091']
+}
+
+task runConsistencyTest(type: JavaExec) {
+    description = 'Run multi-instance consistency test (requires Kafka + servers on 9091 and 9092)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.nucleodb.example.ConsistencyTest'
+    args = ['localhost:9091', 'localhost:9092']
+}
+
+task runMultiInstanceTest(type: JavaExec) {
+    description = 'Run multi-instance test with local MQS (no external deps)'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.nucleodb.example.MultiInstanceTest'
+}

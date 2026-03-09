@@ -365,9 +365,9 @@ public class ConnectionService extends ConnectionServiceGrpc.ConnectionServiceIm
                 return;
             }
 
-            Connection connection = (Connection) handler
+            Connection original = (Connection) handler
                 .getConnectionByUUID().get(request.getUuid());
-            if (connection == null) {
+            if (original == null) {
                 responseObserver.onNext(DeleteConnectionResponse.newBuilder()
                     .setStatus(StatusHelper.error(StatusHelper.CONNECTION_NOT_FOUND,
                         "Connection '" + request.getUuid() + "' not found"))
@@ -376,7 +376,9 @@ public class ConnectionService extends ConnectionServiceGrpc.ConnectionServiceIm
                 return;
             }
 
-            handler.deleteSync(connection);
+            Connection copy = original.copy(
+                handler.getConfig().getConnectionClass(), true);
+            handler.deleteSync(copy);
 
             responseObserver.onNext(DeleteConnectionResponse.newBuilder()
                 .setStatus(StatusHelper.success())
@@ -468,7 +470,9 @@ public class ConnectionService extends ConnectionServiceGrpc.ConnectionServiceIm
                     Connection conn = (Connection) handler
                         .getConnectionByUUID().get(uuid);
                     if (conn != null) {
-                        handler.deleteSync(conn);
+                        Connection connCopy = conn.copy(
+                            handler.getConfig().getConnectionClass(), true);
+                        handler.deleteSync(connCopy);
                         successCount++;
                     } else {
                         failureCount++;
