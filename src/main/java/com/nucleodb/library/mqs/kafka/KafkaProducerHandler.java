@@ -20,6 +20,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class KafkaProducerHandler extends ProducerHandler{
@@ -41,6 +42,9 @@ public class KafkaProducerHandler extends ProducerHandler{
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.ACKS_CONFIG, "all");
         props.put(ProducerConfig.RETRIES_CONFIG, 25);
+        // Idempotent producer prevents duplicate records when retries fire (acks=all + retries>0
+        // without idempotence can silently duplicate events). Requires max.in.flight <= 5 (default).
+        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
 //        props.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 1500);
 //        props.put(ProducerConfig.LINGER_MS_CONFIG, 200);
 //        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 200);
@@ -87,8 +91,9 @@ public class KafkaProducerHandler extends ProducerHandler{
                 }
             });
         } catch (Exception e) {
-            e.printStackTrace();
-            System.exit(-1);
+            // Fail the producer construction loudly instead of killing the host JVM with System.exit.
+            logger.log(Level.SEVERE, "failed to verify/create Kafka topic " + topic, e);
+            throw new RuntimeException("failed to verify/create Kafka topic " + topic, e);
         }
 
         try {
@@ -107,37 +112,38 @@ public class KafkaProducerHandler extends ProducerHandler{
             });
             countDownLatchCreatedCheck.await();
         } catch (Exception e) {
-            e.printStackTrace();
-            System.exit(-1);
+            // Fail the producer construction loudly instead of killing the host JVM with System.exit.
+            logger.log(Level.SEVERE, "failed to verify/create Kafka topic " + topic, e);
+            throw new RuntimeException("failed to verify/create Kafka topic " + topic, e);
         }
         client.close();
     }
 
     @Override
     public void push(String key, long version, Modify modify, Callback callback){
-        new Thread(()-> {
-            try {
-                ProducerRecord record = new ProducerRecord(
-                    super.getTopic(),
-                    key,
-                    modify.getClass().getSimpleName() + Serializer.getObjectMapper().getOm().writeValueAsString(modify)
-                );
-                record.headers().add("version", Long.valueOf(version).toString().getBytes());
+        // Send directly on the async, thread-safe KafkaProducer. Spawning a thread per message
+        // (the previous behaviour) let version N+1 reach the broker before version N, breaking
+        // Kafka's per-partition ordering guarantee and manufacturing out-of-order events.
+        try {
+            ProducerRecord record = new ProducerRecord(
+                super.getTopic(),
+                key,
+                modify.getClass().getSimpleName() + Serializer.getObjectMapper().getOm().writeValueAsString(modify)
+            );
+            record.headers().add("version", Long.valueOf(version).toString().getBytes());
 
-                getProducer().send(record, (e, ex) -> {
-                    //logger.info("Published");
-                    if (ex != null) {
-                        ex.printStackTrace();
-                        System.exit(1);
-                    }
-                    if (callback != null) callback.onCompletion(e, ex);
-                });
-                Thread.currentThread().interrupt();
-                //logger.info("produced");
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }).start();
+            getProducer().send(record, (e, ex) -> {
+                if (ex != null) {
+                    // Do not System.exit: this is an embedded library and a transient broker
+                    // error must not kill the host JVM. Surface the failure to the caller.
+                    logger.log(Level.SEVERE, "failed to publish modification for key " + key, ex);
+                }
+                if (callback != null) callback.onCompletion(e, ex);
+            });
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "failed to enqueue modification for key " + key, e);
+            if (callback != null) callback.onCompletion(null, e);
+        }
     }
     @Override
     public void push(String key, String message){
@@ -148,15 +154,12 @@ public class KafkaProducerHandler extends ProducerHandler{
                 message
             );
             getProducer().send(record, (e, ex) -> {
-                //logger.info("Published");
                 if (ex != null) {
-                    ex.printStackTrace();
-                    System.exit(1);
+                    logger.log(Level.SEVERE, "failed to publish message for key " + key, ex);
                 }
             });
-            //logger.info("produced");
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "failed to enqueue message for key " + key, e);
         }
     }
 }
